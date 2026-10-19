@@ -4,6 +4,8 @@ import (
     "net/http"
     "sync/atomic"
     "fmt"
+    "encoding/json"
+    "strings"
 )
 
 func main() {
@@ -35,6 +37,24 @@ func main() {
     })
     sm.HandleFunc("POST /admin/reset", func(w http.ResponseWriter, req *http.Request) {
         hits.Store(0)
+    })
+    sm.HandleFunc("POST /api/validate_chirp", func(w http.ResponseWriter, req *http.Request) {
+        data := struct {Body string} {}
+        json.NewDecoder(req.Body).Decode(&data) 
+        if len(data.Body) > 140 {
+            w.WriteHeader(400)
+            w.Write([]byte("{\"error\": \"Chirp is too long\"}"))
+        } else {
+            ws := strings.Split(data.Body, " ")
+            for i, w := range ws {
+                w = strings.ToLower(w)
+                if w == "kerfuffle" || w == "sharbert" || w == "fornax" {
+                    ws[i] = "****"
+                }
+            }
+            w.WriteHeader(200)
+            w.Write([]byte("{\"cleaned_body\": \"" + strings.Join(ws, " ") + "\"}"))
+        }
     })
     s.ListenAndServe()
 }
